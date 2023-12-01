@@ -8,7 +8,11 @@ Editor extension that allows Undo/Redo on Unity ProjectWindow.
 ## Getting started
 1. Open Window > PackageManager
 2. Click the `+` button and select `Add package from git URL...`
-3. Input **`https://github.com/Yusuke57/ProjectWindowHistory.git`** and click `Add` button
+3. Enter the URL below and click `Add` button
+
+```
+https://github.com/Yusuke57/ProjectWindowHistory.git
+```
 
 <img width="318" alt="image" src="https://github.com/Yusuke57/ProjectWindowHistory/assets/27964732/94745d5b-2329-43a5-b3ab-f314f8194a4c">
 
