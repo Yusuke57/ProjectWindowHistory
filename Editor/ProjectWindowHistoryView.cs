@@ -37,7 +37,14 @@ namespace ProjectWindowHistory
         private void CreateButton()
         {
             const float buttonWidth = 20f;
+
+#if UNITY_2022_2_OR_NEWER
+            // Unity2022.2以降ではSearchByImportLogTypeボタンが増えたため、その分ボタンの位置を左にずらす
+            const float buttonMarginRight = 470f;
+#else
             const float buttonMarginRight = 440f;
+#endif
+
             _undoButton = new Button(Undo)
             {
                 text = "<",
