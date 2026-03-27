@@ -1,3 +1,5 @@
+// InstanceIDToObject(int), GetAssetPath(int) は 6000.3 で deprecated だが、代替の EntityId API は 6000.1 に存在しない
+#pragma warning disable CS0618
 using System;
 using System.IO;
 using System.Linq;
@@ -37,7 +39,7 @@ namespace ProjectWindowHistory
         {
             // フォルダが何かしら削除されていた場合は無効にしておく
             return (_selectedFolderInstanceIds?.Any() ?? false)
-                   && _selectedFolderInstanceIds.All(instanceId => EditorUtility.InstanceIDToObject(instanceId) != null);
+                   && _selectedFolderInstanceIds.All(instanceId => EditorUtility.InstanceIDToObject(instanceId) != null); // CS0618 suppressed at file level
         }
 
         /// <summary>
