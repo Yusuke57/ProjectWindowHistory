@@ -134,8 +134,9 @@ namespace ProjectWindowHistory
         /// <returns></returns>
         public static int[] GetLastFolderInstanceIds(EditorWindow targetProjectWindow)
         {
-            // 選択中のフォルダのパス配列を取得し、パスからインスタンスIDに変換する
-            // ※ GetFolderInstanceIDs は 6000.3 で EntityId[] を返すようになったため使用しない
+#if UNITY_6000_3_OR_NEWER
+            // GetFolderInstanceIDs は 6000.3 で EntityId[] を返すようになったため、
+            // m_LastFolders のパスからインスタンスIDに変換する
             var lastFolderPaths = LastFoldersField.GetValue(targetProjectWindow) as string[];
             if (lastFolderPaths == null || lastFolderPaths.Length == 0)
                 return Array.Empty<int>();
@@ -145,6 +146,11 @@ namespace ProjectWindowHistory
                 .Where(obj => obj != null)
                 .Select(obj => obj.GetInstanceID())
                 .ToArray();
+#else
+            // 選択中のフォルダのパス配列を取得し、GetFolderInstanceIDs でインスタンスIDに変換する
+            var lastFolderPaths = LastFoldersField.GetValue(targetProjectWindow) ?? Array.Empty<object>();
+            return (int[]) GetFolderInstanceIDsMethod.Invoke(null, new[] { lastFolderPaths });
+#endif
         }
 
         /// <summary>
