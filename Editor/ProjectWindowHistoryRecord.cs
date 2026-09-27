@@ -1,10 +1,14 @@
-// InstanceIDToObject(int), GetAssetPath(int) は 6000.3 で deprecated だが、代替の EntityId API は 6000.1 に存在しない
-#pragma warning disable CS0618
 using System;
 using System.IO;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+#if UNITY_6000_3_OR_NEWER
+using FolderId = UnityEngine.EntityId;
+#else
+// EntityId は 6000.3 で追加された型なので、それ以前は従来どおり int を使う
+using FolderId = System.Int32;
+#endif
 using SearchViewState = ProjectWindowHistory.ProjectWindowReflectionUtility.SearchViewState;
 
 namespace ProjectWindowHistory
@@ -15,15 +19,15 @@ namespace ProjectWindowHistory
     [Serializable]
     public class ProjectWindowHistoryRecord
     {
-        [SerializeField] private int[] _selectedFolderInstanceIds;
+        [SerializeField] private FolderId[] _selectedFolderInstanceIds;
         [SerializeField] private string _searchedText;
         [SerializeField] private SearchViewState _searchViewState;
 
-        public int[] SelectedFolderInstanceIDs => _selectedFolderInstanceIds;
+        public FolderId[] SelectedFolderInstanceIDs => _selectedFolderInstanceIds;
         public string SearchedText => _searchedText;
         public SearchViewState SearchViewState => _searchViewState;
 
-        public ProjectWindowHistoryRecord(int[] selectedFolderInstanceIds, string searchedText, SearchViewState searchViewState)
+        public ProjectWindowHistoryRecord(FolderId[] selectedFolderInstanceIds, string searchedText, SearchViewState searchViewState)
         {
             _selectedFolderInstanceIds = selectedFolderInstanceIds;
             _searchedText = searchedText;
@@ -39,7 +43,7 @@ namespace ProjectWindowHistory
         {
             // フォルダが何かしら削除されていた場合は無効にしておく
             return (_selectedFolderInstanceIds?.Any() ?? false)
-                   && _selectedFolderInstanceIds.All(instanceId => EditorUtility.InstanceIDToObject(instanceId) != null); // CS0618 suppressed at file level
+                   && _selectedFolderInstanceIds.All(instanceId => AssetDatabase.IsValidFolder(AssetDatabase.GetAssetPath(instanceId)));
         }
 
         /// <summary>

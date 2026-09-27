@@ -1,5 +1,3 @@
-// GetAssetPath(int) は 6000.3 で deprecated だが、代替の EntityId API は 6000.1 に存在しない
-#pragma warning disable CS0618
 using System.Linq;
 using UnityEditor;
 using UnityEngine;

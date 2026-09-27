@@ -1,10 +1,14 @@
-// GetAssetPath(int) は 6000.3 で deprecated だが、代替の EntityId API は 6000.1 に存在しない
-#pragma warning disable CS0618
 using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
 using UnityEditor;
+#if UNITY_6000_3_OR_NEWER
+using FolderId = UnityEngine.EntityId;
+#else
+// EntityId は 6000.3 で追加された型なので、それ以前は従来どおり int を使う
+using FolderId = System.Int32;
+#endif
 
 namespace ProjectWindowHistory
 {
@@ -47,10 +51,13 @@ namespace ProjectWindowHistory
             ??= ProjectBrowserType.GetMethod("GetFolderInstanceIDs", BindingFlags.NonPublic | BindingFlags.Static);
 
         private static MethodInfo _setFolderSelectionMethod;
-        // オーバーロードがあるので引数2つのメソッドの方を探して呼ぶ
+        // オーバーロードがあるので引数が最も少ないメソッドを探して呼ぶ
+        // (6000.3 で引数2つのオーバーロードが無くなり、省略可能引数が付いた3つ以上のものだけになった)
         private static MethodInfo SetFolderSelectionMethod => _setFolderSelectionMethod
             ??= ProjectBrowserType.GetMethods(BindingFlags.NonPublic | BindingFlags.Instance)
-                .FirstOrDefault(method => method.Name == "SetFolderSelection" && method.GetParameters().Length == 2);
+                .Where(method => method.Name == "SetFolderSelection")
+                .OrderBy(method => method.GetParameters().Length)
+                .FirstOrDefault();
 
         private static MethodInfo _setSearchMethod;
         // オーバーロードがあるのでSearchFilter型引数のメソッドの方を探して呼ぶ
@@ -132,25 +139,12 @@ namespace ProjectWindowHistory
         /// 左側のツリーで選択したフォルダのインスタンスIDを取得する
         /// </summary>
         /// <returns></returns>
-        public static int[] GetLastFolderInstanceIds(EditorWindow targetProjectWindow)
+        public static FolderId[] GetLastFolderInstanceIds(EditorWindow targetProjectWindow)
         {
-#if UNITY_6000_3_OR_NEWER
-            // GetFolderInstanceIDs は 6000.3 で EntityId[] を返すようになったため、
-            // m_LastFolders のパスからインスタンスIDに変換する
-            var lastFolderPaths = LastFoldersField.GetValue(targetProjectWindow) as string[];
-            if (lastFolderPaths == null || lastFolderPaths.Length == 0)
-                return Array.Empty<int>();
-
-            return lastFolderPaths
-                .Select(path => AssetDatabase.LoadAssetAtPath<UnityEngine.Object>(path))
-                .Where(obj => obj != null)
-                .Select(obj => obj.GetInstanceID())
-                .ToArray();
-#else
             // 選択中のフォルダのパス配列を取得し、GetFolderInstanceIDs でインスタンスIDに変換する
-            var lastFolderPaths = LastFoldersField.GetValue(targetProjectWindow) ?? Array.Empty<object>();
-            return (int[]) GetFolderInstanceIDsMethod.Invoke(null, new[] { lastFolderPaths });
-#endif
+            // (戻り値の要素型は 6000.3 以降 EntityId、それ以前は int で、FolderId と一致する)
+            var lastFolderPaths = LastFoldersField.GetValue(targetProjectWindow) as string[] ?? Array.Empty<string>();
+            return (FolderId[]) GetFolderInstanceIDsMethod.Invoke(null, new object[] { lastFolderPaths });
         }
 
         /// <summary>
@@ -158,18 +152,17 @@ namespace ProjectWindowHistory
         /// </summary>
         /// <param name="targetProjectWindow"></param>
         /// <param name="selectedFolderInstanceIds"></param>
-        public static void SetFolderSelection(EditorWindow targetProjectWindow, int[] selectedFolderInstanceIds)
+        public static void SetFolderSelection(EditorWindow targetProjectWindow, FolderId[] selectedFolderInstanceIds)
         {
-#if UNITY_6000_3_OR_NEWER
-            var entityIds = selectedFolderInstanceIds
-                .Select(id => EditorUtility.InstanceIDToObject(id))
-                .Where(obj => obj != null)
-                .Select(obj => obj.GetEntityId())
-                .ToArray();
-            SetFolderSelectionMethod.Invoke(targetProjectWindow, new object[] { entityIds, false });
-#else
-            SetFolderSelectionMethod.Invoke(targetProjectWindow, new object[] { selectedFolderInstanceIds, false });
-#endif
+            // 第2引数以降 (revealSelectionAndFrameLastSelected など) は全て false
+            var args = new object[SetFolderSelectionMethod.GetParameters().Length];
+            args[0] = selectedFolderInstanceIds;
+            for (var i = 1; i < args.Length; i++)
+            {
+                args[i] = false;
+            }
+
+            SetFolderSelectionMethod.Invoke(targetProjectWindow, args);
         }
 
         /// <summary>
@@ -188,14 +181,14 @@ namespace ProjectWindowHistory
         /// <param name="targetProjectWindow"></param>
         /// <param name="searchedText"></param>
         /// <param name="selectedFolderInstanceIds"></param>
-        public static void SetSearch(EditorWindow targetProjectWindow, string searchedText, int[] selectedFolderInstanceIds)
+        public static void SetSearch(EditorWindow targetProjectWindow, string searchedText, FolderId[] selectedFolderInstanceIds)
         {
             // 検索文字列からsearchFilterを生成する
             var searchFilter = CreateSearchFilterFromStringMethod.Invoke(null, new object[] { searchedText });
 
             // searchFilterに選択中のフォルダを設定する
             var selectedFolderPathList = selectedFolderInstanceIds
-                .Select(id => AssetDatabase.GetAssetPath(EditorUtility.InstanceIDToObject(id)))
+                .Select(id => AssetDatabase.GetAssetPath(id))
                 .ToArray();
             SearchFilterFoldersField.SetValue(searchFilter, selectedFolderPathList);
 

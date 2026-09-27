@@ -3,6 +3,12 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;
+#if UNITY_6000_3_OR_NEWER
+using WindowId = UnityEngine.EntityId;
+#else
+// EntityId は 6000.3 で追加された型なので、それ以前は従来どおり int を使う
+using WindowId = System.Int32;
+#endif
 
 namespace ProjectWindowHistory
 {
@@ -16,7 +22,19 @@ namespace ProjectWindowHistory
 
         public ProjectWindowHistory GetHistory(EditorWindow targetWindow)
         {
-            return _saveDataList.FirstOrDefault(data => data.WindowInstanceId == targetWindow.GetInstanceID())?.History;
+            return _saveDataList.FirstOrDefault(data => data.WindowInstanceId == GetWindowId(targetWindow))?.History;
+        }
+
+        /// <summary>
+        /// EditorWindow の識別子を取得する
+        /// </summary>
+        internal static WindowId GetWindowId(EditorWindow window)
+        {
+#if UNITY_6000_3_OR_NEWER
+            return window.GetEntityId();
+#else
+            return window.GetInstanceID();
+#endif
         }
 
         public void Add(EditorWindow targetWindow, ProjectWindowHistory history)
@@ -29,15 +47,15 @@ namespace ProjectWindowHistory
     [Serializable]
     public class ProjectWindowHistorySaveData
     {
-        [SerializeField] private int _windowInstanceId;
+        [SerializeField] private WindowId _windowInstanceId;
         [SerializeField] private ProjectWindowHistory _history;
 
-        public int WindowInstanceId => _windowInstanceId;
+        public WindowId WindowInstanceId => _windowInstanceId;
         public ProjectWindowHistory History => _history;
 
         public ProjectWindowHistorySaveData(EditorWindow window, ProjectWindowHistory history)
         {
-            _windowInstanceId = window.GetInstanceID();
+            _windowInstanceId = ProjectWindowHistoryHolder.GetWindowId(window);
             _history = history;
         }
     }
